@@ -1,5 +1,21 @@
 import { panic } from "../common/panic.ts";
 
+export interface CPUState {
+  pc: number;
+  sp: number;
+  registers: Uint32Array;
+  instruction: number;
+  decoded: {
+    opcode: number;
+    rd: number;
+    rs: number;
+    rt: number;
+    imm: number;
+  };
+}
+
+export type CPUStepCallback = (state: CPUState) => void;
+
 export class CPU {
   private programCounter = 0;
   private stackPointer = 0xFFFF;
@@ -7,6 +23,8 @@ export class CPU {
   private memory = new Uint8Array(64 * 1024);
   private exitCode: number | null = null;
   private outputBuffer: string[] = [];
+  private stepCallback?: CPUStepCallback;
+  private stepDelay = 0;
 
   private read32(addr: number) {
     if (addr < 0 || addr > this.memory.length - 4) {
@@ -38,6 +56,19 @@ export class CPU {
     this.outputBuffer = [];
   }
 
+  public setStepCallback(callback: CPUStepCallback | undefined, delayMs = 0) {
+    this.stepCallback = callback;
+    this.stepDelay = delayMs;
+  }
+
+  public getPC(): number {
+    return this.programCounter;
+  }
+
+  public getSP(): number {
+    return this.stackPointer;
+  }
+
   public loadMemory(binary: Uint8Array, offset = 0) {
     this.memory.set(binary, offset);
   }
@@ -61,7 +92,7 @@ export class CPU {
     return this.memory[addr];
   }
 
-  public start() {
+  public async start() {
     while (true) {
       const inst = this.read32(this.programCounter);
       const opcode = inst >>> 24;
@@ -69,6 +100,20 @@ export class CPU {
       const rs = (inst >>> 16) & 0xF;
       const rt = (inst >>> 12) & 0xF;
       const imm = inst & 0xFFF;
+
+      if (this.stepCallback) {
+        this.stepCallback({
+          pc: this.programCounter,
+          sp: this.stackPointer,
+          registers: new Uint32Array(this.registers),
+          instruction: inst,
+          decoded: { opcode, rd, rs, rt, imm }
+        });
+        
+        if (this.stepDelay > 0) {
+          await new Promise(resolve => setTimeout(resolve, this.stepDelay));
+        }
+      }
 
       switch (this.execute(opcode, rd, rs, rt, imm)) {
         case 0:

@@ -2,7 +2,7 @@ import { assertEquals } from "jsr:@std/assert";
 import { Assembler } from "../asm/index.ts";
 import { CPU } from "../cpu/index.ts";
 
-Deno.test("Integration - sum from 1 to 10", () => {
+Deno.test("Integration - sum from 1 to 10", async () => {
   const source = `
 LUI r1, 10
 LUI r2, 0
@@ -18,13 +18,13 @@ HALT
 
   const cpu = new CPU();
   cpu.loadMemory(binary);
-  cpu.start();
+  await cpu.start();
 
   assertEquals(cpu.getRegister(1), 0);
   assertEquals(cpu.getRegister(2), 55);
 });
 
-Deno.test("Integration - simple addition", () => {
+Deno.test("Integration - simple addition", async () => {
   const source = `
 LUI r1, 5
 LUI r2, 3
@@ -37,14 +37,14 @@ HALT
 
   const cpu = new CPU();
   cpu.loadMemory(binary);
-  cpu.start();
+  await cpu.start();
 
   assertEquals(cpu.getRegister(1), 5);
   assertEquals(cpu.getRegister(2), 3);
   assertEquals(cpu.getRegister(3), 8);
 });
 
-Deno.test("Integration - subtraction", () => {
+Deno.test("Integration - subtraction", async () => {
   const source = `
 LUI r1, 10
 LUI r2, 3
@@ -57,12 +57,12 @@ HALT
 
   const cpu = new CPU();
   cpu.loadMemory(binary);
-  cpu.start();
+  await cpu.start();
 
   assertEquals(cpu.getRegister(3), 7);
 });
 
-Deno.test("Integration - memory load/store", () => {
+Deno.test("Integration - memory load/store", async () => {
   const source = `
 LUI r1, 42
 SW r1, 100(r0)
@@ -75,12 +75,12 @@ HALT
 
   const cpu = new CPU();
   cpu.loadMemory(binary);
-  cpu.start();
+  await cpu.start();
 
   assertEquals(cpu.getRegister(2), 42);
 });
 
-Deno.test("Integration - conditional branch BEQ", () => {
+Deno.test("Integration - conditional branch BEQ", async () => {
   const source = `
 LUI r1, 5
 LUI r2, 5
@@ -96,12 +96,12 @@ HALT
 
   const cpu = new CPU();
   cpu.loadMemory(binary);
-  cpu.start();
+  await cpu.start();
 
   assertEquals(cpu.getRegister(3), 100);
 });
 
-Deno.test("Integration - unconditional jump", () => {
+Deno.test("Integration - unconditional jump", async () => {
   const source = `
 J 8
 LUI r1, 99
@@ -115,7 +115,7 @@ HALT
 
   const cpu = new CPU();
   cpu.loadMemory(binary);
-  cpu.start();
+  await cpu.start();
 
   assertEquals(cpu.getRegister(1), 100);
 });

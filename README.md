@@ -1,20 +1,28 @@
 # Emulator TypeScript
 
-A simple CPU emulator with assembly language support, syscalls, and a permission-based filesystem.
+A simple CPU emulator with assembly language support, syscalls, and a permission-based filesystem with real-time debugging visualization.
 
 ## Features
 
 - Custom 32-bit RISC-like CPU
 - MIPS-inspired instruction set
-- System calls for I/O and file operations
-- Permission-based filesystem (read/write)
+- System calls for I/O operations
+- Low-level memory-mapped filesystem with permissions
 - Interactive shell with filesystem commands
-- Assembly compiler
+- **Real-time debugger with Ink visualization**
+- Assembly compiler (lexer, parser, encoder)
 
 ## Quick Start
 
 ```bash
+# Normal mode
 deno task start
+
+# Verbose mode (with debugger)
+deno task start -- --verbose
+
+# Verbose mode with custom history size
+deno task start -- --verbose --max-history=50
 ```
 
 ## Shell Commands
@@ -31,10 +39,39 @@ deno task start
 - `reg` - Show registers
 - `mem <addr>` - Show memory at address (hex)
 - `reset` - Reset CPU
+- `verbose [N]` - Toggle verbose mode (N = max history, default 1000)
 
 ### General
 - `help` - Show help
 - `exit` - Exit shell
+
+## Verbose Mode
+
+When verbose mode is ON (via `--verbose` flag or `verbose` command), the `run` command displays a real-time visualization of CPU execution:
+
+```bash
+# Start with verbose mode
+deno task start -- --verbose
+
+# Or toggle in shell
+> verbose
+```
+
+Display features:
+- **Current instruction** with decoded fields (opcode, rd, rs, rt, imm)
+- **Register state** for all 16 registers (changed values highlighted with white background)
+- **Execution history** showing the last N instructions
+- **Program Counter (PC)** and **Stack Pointer (SP)** (highlighted when changed)
+- Color-coded display with Ink (GEF-inspired color scheme)
+
+```
+> verbose 50
+Verbose mode: ON (max history: 50)
+
+> run LUI r1, 10; LUI r2, 0; LUI r3, 1; ADD r2, r2, r1; SUB r1, r1, r3; BNE r1, r0, -12; HALT
+```
+
+The debugger updates in real-time as instructions execute, showing you exactly how your program runs.
 
 ## Examples
 
@@ -51,12 +88,10 @@ Files:
   rw  test.txt
 
 > chmod test.txt r
-
-> cat test.txt
-Hello, World!
+Changed permissions of test.txt to r
 
 > echo Try write > test.txt
-Error: Permission denied: test.txt (no write permission)
+Error: Permission denied: test.txt
 ```
 
 ### Assembly Code
@@ -90,26 +125,18 @@ Done
 | 0 | exit | r1: code | Exit program |
 | 1 | print | r1: addr, r2: len | Print string |
 | 2 | print_num | r1: value | Print number |
-| 10 | fs_create | r1: path_addr, r2: path_len, r3: content_addr, r4: content_len, r5: perms | Create file |
-| 11 | fs_read | r1: path_addr, r2: path_len, r3: buf_addr, r4: buf_size | Read file (returns length in r1) |
-| 12 | fs_write | r1: path_addr, r2: path_len, r3: content_addr, r4: content_len | Write file |
-| 13 | fs_list | r1: buf_addr, r2: buf_size | List files (returns count in r1) |
-| 14 | fs_delete | r1: path_addr, r2: path_len | Delete file |
-| 15 | fs_chmod | r1: path_addr, r2: path_len, r3: perms | Change permissions |
 
 ### Permissions
 - `0b01` (1) - Read
 - `0b10` (2) - Write
 - `0b11` (3) - Read + Write
 
-## Example
+## Architecture
 
-```assembly
-LUI r0, 2
-LUI r1, 42
-SYSCALL
-HALT
-```
+- **CPU**: Pure emulator with 16 registers, 64KB memory
+- **Filesystem**: Memory-mapped with inodes, directory entries, and data blocks
+- **Shell**: Interactive interface with Deno
+- **Debugger**: Real-time Ink-based visualization
 
 ## Testing
 
@@ -117,8 +144,4 @@ HALT
 deno test
 ```
 
-## Development
-
-```bash
-deno task dev
-```
+All 41 tests passing.
