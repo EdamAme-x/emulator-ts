@@ -7,12 +7,18 @@ export class CPU {
   private memory = new Uint8Array(64 * 1024);
 
   private read32(addr: number) {
+    if (addr < 0 || addr > this.memory.length - 4) {
+      throw panic(`Memory access out of bounds: 0x${addr.toString(16)}`);
+    }
     const m = this.memory;
     const [b0, b1, b2, b3] = [m[addr], m[addr + 1], m[addr + 2], m[addr + 3]];
     return ((b0 << 24) | (b1 << 16) | (b2 << 8) | b3) >>> 0;
   }
 
   private write32(addr: number, value: number) {
+    if (addr < 0 || addr > this.memory.length - 4) {
+      throw panic(`Memory access out of bounds: 0x${addr.toString(16)}`);
+    }
     const m = this.memory;
     [m[addr], m[addr + 1], m[addr + 2], m[addr + 3]] = [
       value >>> 24,
@@ -26,6 +32,14 @@ export class CPU {
     this.programCounter = 0;
     this.stackPointer = 0xFFFF;
     this.registers.fill(0);
+  }
+
+  public loadMemory(binary: Uint8Array, offset = 0) {
+    this.memory.set(binary, offset);
+  }
+
+  public getRegister(index: number): number {
+    return this.registers[index];
   }
 
   public start() {
