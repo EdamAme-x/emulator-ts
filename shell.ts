@@ -178,36 +178,48 @@ export class Shell {
           stepCount++;
           
           console.clear();
-          console.log("=== Assembly Source ===");
-          sourceLines.forEach((line, i) => {
+          console.log("=== Assembly Source (showing around current line) ===");
+          
+          const currentIdx = sourceLines.findIndex((_, i) => loadAddr + (i * 4) === state.pc);
+          const start = Math.max(0, currentIdx - 2);
+          const end = Math.min(sourceLines.length, currentIdx + 3);
+          
+          for (let i = start; i < end; i++) {
             const addr = loadAddr + (i * 4);
             const isCurrent = state.pc === addr;
             const marker = isCurrent ? "→" : " ";
             const color = isCurrent ? "\x1b[32m" : "\x1b[90m";
             const reset = "\x1b[0m";
-            console.log(`${color}${marker} 0x${addr.toString(16).padStart(4, "0")}: ${line}${reset}`);
-          });
+            console.log(`${color}${marker} 0x${addr.toString(16).padStart(4, "0")}: ${sourceLines[i]}${reset}`);
+          }
           
           console.log("\n=== CPU State ===");
           console.log(`PC: 0x${state.pc.toString(16).padStart(4, "0")}  SP: 0x${state.sp.toString(16).padStart(4, "0")}  Step: ${stepCount}`);
           
-          console.log("\n=== Registers (Changed in \x1b[43m\x1b[30mYellow\x1b[0m) ===");
+          console.log("\n=== Registers (Only Non-Zero & Changed) ===");
           const prev = states[states.length - 2];
-          for (let i = 0; i < 16; i += 4) {
-            const parts = [];
-            for (let j = 0; j < 4; j++) {
-              const reg = i + j;
-              const val = state.registers[reg];
-              const changed = prev && prev.registers[reg] !== val;
-              const color = changed ? "\x1b[43m\x1b[30m" : (val === 0 ? "\x1b[90m" : "\x1b[36m");
-              const reset = "\x1b[0m";
-              parts.push(`r${reg.toString().padStart(2, "0")}: ${color}0x${val.toString(16).padStart(8, "0")}${reset}`);
-            }
-            console.log(`  ${parts.join("  ")}`);
+          const displayRegs = [];
+          
+          for (let i = 0; i < 16; i++) {
+            const val = state.registers[i];
+            if (val === 0 && (!prev || prev.registers[i] === 0)) continue;
+            
+            const changed = prev && prev.registers[i] !== val;
+            const color = changed ? "\x1b[43m\x1b[30m" : "\x1b[36m";
+            const reset = "\x1b[0m";
+            displayRegs.push(`r${i.toString().padStart(2, "0")}: ${color}0x${val.toString(16).padStart(8, "0")}${reset}`);
           }
           
-          const lastN = Math.min(5, states.length);
-          console.log(`\n=== Last ${lastN} Instructions ===`);
+          if (displayRegs.length === 0) {
+            console.log("  (all registers are zero)");
+          } else {
+            for (let i = 0; i < displayRegs.length; i += 4) {
+              console.log(`  ${displayRegs.slice(i, i + 4).join("  ")}`);
+            }
+          }
+          
+          const lastN = Math.min(3, states.length);
+          console.log(`\n=== Last ${lastN} Steps ===`);
           for (let i = states.length - lastN; i < states.length; i++) {
             if (i < 0) continue;
             const s = states[i];
@@ -229,7 +241,11 @@ export class Shell {
         }
         
         this.cpu.setStepCallback(undefined);
+        
+        console.clear();
         console.log("\n\x1b[32m=== Execution Complete ===\x1b[0m");
+        console.log(`Total steps: ${stepCount}`);
+        console.log(`Final PC: 0x${this.cpu.getPC().toString(16).padStart(4, "0")}`);
       } else {
         try {
           await this.cpu.start();
