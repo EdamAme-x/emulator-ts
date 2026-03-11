@@ -14,6 +14,11 @@ export interface CPUState {
   };
 }
 
+export interface MemoryChange {
+  addr: number;
+  value: number;
+}
+
 export type CPUStepCallback = (state: CPUState) => void;
 
 export class CPU {
@@ -25,6 +30,7 @@ export class CPU {
   private outputBuffer: string[] = [];
   private stepCallback?: CPUStepCallback;
   private stepDelay = 0;
+  private memoryWrites: MemoryChange[] = [];
 
   private read32(addr: number) {
     if (addr < 0 || addr > this.memory.length - 4) {
@@ -40,12 +46,17 @@ export class CPU {
       throw panic(`Memory access out of bounds: 0x${addr.toString(16)}`);
     }
     const m = this.memory;
-    [m[addr], m[addr + 1], m[addr + 2], m[addr + 3]] = [
+    const bytes = [
       value >>> 24,
       (value >>> 16) & 0xFF,
       (value >>> 8) & 0xFF,
       value & 0xFF,
     ];
+    
+    for (let i = 0; i < 4; i++) {
+      m[addr + i] = bytes[i];
+      this.memoryWrites.push({ addr: addr + i, value: bytes[i] });
+    }
   }
 
   public reset() {
@@ -115,6 +126,8 @@ export class CPU {
         }
       }
 
+      this.memoryWrites = [];
+      
       switch (this.execute(opcode, rd, rs, rt, imm)) {
         case 0:
           this.programCounter += 4;
@@ -127,6 +140,10 @@ export class CPU {
           throw panic();
       }
     }
+  }
+
+  public getLastMemoryWrites(): MemoryChange[] {
+    return this.memoryWrites;
   }
 
   private execute(

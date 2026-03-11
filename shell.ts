@@ -177,6 +177,8 @@ export class Shell {
           states.push(state);
           stepCount++;
           
+          const memWrites = this.cpu.getLastMemoryWrites();
+          
           console.clear();
           console.log("=== Assembly Source (showing around current line) ===");
           
@@ -215,6 +217,22 @@ export class Shell {
           } else {
             for (let i = 0; i < displayRegs.length; i += 4) {
               console.log(`  ${displayRegs.slice(i, i + 4).join("  ")}`);
+            }
+          }
+          
+          if (memWrites.length > 0) {
+            console.log("\n=== Memory Writes (This Step) ===");
+            const grouped = new Map<number, number[]>();
+            for (const write of memWrites.slice(0, 8)) {
+              const base = Math.floor(write.addr / 4) * 4;
+              if (!grouped.has(base)) grouped.set(base, [0, 0, 0, 0]);
+              grouped.get(base)![write.addr % 4] = write.value;
+            }
+            
+            for (const [addr, bytes] of grouped) {
+              const hexBytes = bytes.map(b => b.toString(16).padStart(2, "0")).join(" ");
+              const value = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+              console.log(`  0x${addr.toString(16).padStart(4, "0")}: \x1b[43m\x1b[30m${hexBytes}\x1b[0m (=${value})`);
             }
           }
           
