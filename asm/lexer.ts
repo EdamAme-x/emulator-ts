@@ -1,22 +1,12 @@
-// Example Assembly:
-// ; Sum from 1 to 10
-// LUI r1, 10        ; counter
-// LUI r2, 0         ; sum
-// loop:
-//   ADD r2, r2, r1  ; sum += counter
-//   SUB r1, r1, 1   ; counter--
-//   BNE r1, r0, -8  ; if counter != 0 goto loop
-// HALT
-
 export type Token =
-  | { type: "instruction"; value: string }      // ADD, LW, etc.
-  | { type: "register"; value: number }         // r0-r15 → 0-15
-  | { type: "immediate"; value: number }        // 42, -8, 0x10
-  | { type: "comma" }                           // ,
-  | { type: "lparen" }                          // (
-  | { type: "rparen" }                          // )
-  | { type: "newline" }                         // \n
-  | { type: "eof" };                            // EOF
+  | { type: "instruction"; value: string }
+  | { type: "register"; value: number }
+  | { type: "immediate"; value: number }
+  | { type: "comma" }
+  | { type: "lparen" }
+  | { type: "rparen" }
+  | { type: "newline" }
+  | { type: "eof" };
 
 export class Lexer {
     public constructor(private source: string) {}

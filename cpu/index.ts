@@ -5,6 +5,8 @@ export class CPU {
   private stackPointer = 0xFFFF;
   private registers = new Uint32Array(16);
   private memory = new Uint8Array(64 * 1024);
+  private exitCode: number | null = null;
+  private outputBuffer: string[] = [];
 
   private read32(addr: number) {
     if (addr < 0 || addr > this.memory.length - 4) {
@@ -32,6 +34,8 @@ export class CPU {
     this.programCounter = 0;
     this.stackPointer = 0xFFFF;
     this.registers.fill(0);
+    this.exitCode = null;
+    this.outputBuffer = [];
   }
 
   public loadMemory(binary: Uint8Array, offset = 0) {
@@ -40,6 +44,21 @@ export class CPU {
 
   public getRegister(index: number): number {
     return this.registers[index];
+  }
+
+  public getExitCode(): number | null {
+    return this.exitCode;
+  }
+
+  public getOutput(): string {
+    return this.outputBuffer.join("");
+  }
+
+  public getMemoryByte(addr: number): number {
+    if (addr < 0 || addr >= this.memory.length) {
+      throw new Error(`Invalid memory address: 0x${addr.toString(16)}`);
+    }
+    return this.memory[addr];
   }
 
   public start() {
@@ -133,11 +152,69 @@ export class CPU {
         break;
       }
 
+      case 0xFC: { // SYSCALL
+        this.handleSyscall();
+        break;
+      }
+
       case 0xFF: // HALT
         return 2;
       default:
         return 1;
     }
     return 0;
+  }
+
+  private handleSyscall() {
+    const syscallNumber = this.registers[0];
+
+    switch (syscallNumber) {
+      case 0: { // exit(code)
+        const code = this.registers[1];
+        this.exitCode = code;
+        throw new Error(`Program exited with code: ${code}`);
+      }
+
+      case 1: { // print(addr, len)
+        const addr = this.registers[1];
+        const len = this.registers[2];
+        
+        if (addr < 0 || addr + len > this.memory.length) {
+          throw panic(`Invalid memory range for print: ${addr}-${addr + len}`);
+        }
+
+        let str = "";
+        for (let i = 0; i < len; i++) {
+          str += String.fromCharCode(this.memory[addr + i]);
+        }
+        this.outputBuffer.push(str);
+        break;
+      }
+
+      case 2: { // print_num(value)
+        const value = this.registers[1];
+        this.outputBuffer.push(value.toString());
+        break;
+      }
+
+      default:
+        throw panic(`Unknown syscall: ${syscallNumber}`);
+    }
+  }
+
+  private readString(addr: number, len: number): string {
+    if (addr < 0 || addr + len > this.memory.length) {
+      throw panic(`Invalid memory range: ${addr}-${addr + len}`);
+    }
+
+    let str = "";
+    for (let i = 0; i < len; i++) {
+      str += String.fromCharCode(this.memory[addr + i]);
+    }
+    return str;
+  }
+
+  public getMemory(): Uint8Array {
+    return this.memory;
   }
 }

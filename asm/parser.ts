@@ -148,6 +148,16 @@ export class Parser {
         };
       }
 
+      case "SYSCALL": {
+        return {
+          opcode: 0xFC,
+          rd: 0,
+          rs: 0,
+          rt: 0,
+          imm: 0,
+        };
+      }
+
       case "HALT": {
         return {
           opcode: 0xFF,
